@@ -12,6 +12,11 @@ foreign import data JQuery :: *
 -- Type of jQuery event objects
 foreign import data JQueryEvent :: *
 
+-- Type of jQuery XHR object
+foreign import data JQueryXHR :: *
+
+type URL = String
+
 -- $(document).ready(function() { ... })
 foreign import ready
   "function ready(func) { \
@@ -252,24 +257,61 @@ foreign import on'
   \  }; \
   \}" :: forall eff a. String -> String -> (JQueryEvent -> JQuery -> Eff eff a) -> JQuery ->
          Eff (dom :: DOM | eff) JQuery
-         
+
 foreign import preventDefault
   "function preventDefault(e) { \
   \  return function() { \
   \    e.preventDefault(); \
   \ } \
   \}" :: forall eff. JQueryEvent -> Eff (dom :: DOM | eff) Unit
-         
+
 foreign import stopPropagation
   "function stopPropagation(e) { \
   \  return function() { \
   \    e.stopPropagation(); \
   \ } \
   \}" :: forall eff. JQueryEvent -> Eff (dom :: DOM | eff) Unit
-         
+
 foreign import stopImmediatePropagation
   "function stopImmediatePropagation(e) { \
   \  return function() { \
   \    e.stopImmediatePropagation(); \
   \ } \
   \}" :: forall eff. JQueryEvent -> Eff (dom :: DOM | eff) Unit
+
+-- jQuery.ajax function
+foreign import ajax
+  "function ajax(url) { \
+  \  return function(settings) { \
+  \    return function() { \
+  \      var s = JSON.parse(JSON.stringify(settings)); \
+  \      delete s['_type']; \
+  \      s.type = settings['_type']; \
+  \      return jQuery.ajax(url, s); \
+  \    }; \
+  \  }; \
+  \}" :: forall s eff. URL -> { | s } -> Eff (dom :: DOM | eff) JQueryXHR
+
+foreign import done
+  "function done(callback) { \
+  \  return function(jqXHR) { \
+  \    return function() { \
+  \      return jqXHR.done(function(d, t, j) { \
+  \        callback(d)(t)(j)(); \
+  \      }); \
+  \    }; \
+  \  }; \
+  \}" :: forall d eff a. (d -> String -> JQueryXHR -> Eff eff a) -> JQueryXHR ->
+         Eff (dom :: DOM | eff) JQueryXHR
+
+foreign import fail
+  "function fail(callback) { \
+  \  return function(jqXHR) { \
+  \    return function() { \
+  \      return jqXHR.fail(function(j, t, e) { \
+  \        callback(j)(t)(e)(); \
+  \      }); \
+  \    }; \
+  \  }; \
+  \}" :: forall err eff a. (JQueryXHR -> String -> err -> Eff eff a) -> JQueryXHR ->
+         Eff (dom :: DOM | eff) JQueryXHR

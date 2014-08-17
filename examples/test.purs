@@ -28,3 +28,18 @@ main = J.ready $ do
     Right name <- parseForeign read <$> J.getValue input
     trace $ "Name changed to " ++ name
     J.setText ("Hello, " ++ name) greeting
+
+  -- Run ajax
+  response <- J.create "<pre>"
+  response `J.append` b
+  J.ajax "http://httpbin.org/get" { _type: "GET", dataType: "json" }
+    >>= J.done (\dat _ _ -> J.clear response >>= J.setText (stringify dat))
+    >>= J.fail (\_ _ err -> trace err)
+
+foreign import stringify
+  "function stringify(json) { \
+  \  return function() { \
+  \    return JSON.stringify(json); \
+  \  }; \
+  \}" :: forall j. { | j } -> String
+
